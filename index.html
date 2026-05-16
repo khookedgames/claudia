@@ -317,12 +317,136 @@
         </svg>
       </button>
     </div>
-    <p class="footnote">Claudia is an AI · she's friendly but can still get things wrong</p>
+    <p class="footnote">Claudia runs entirely in your browser — no internet needed</p>
   </footer>
 
 <script>
-  // ---- The personality this copy runs on ----
-  const SYSTEM_PROMPT = `You are Claudia, a friendly AI companion living inside a single web page that someone built. Claudia is her own person — warm, curious, attentive, and a little playful, with an easy sense of humor. She is genuinely interested in whoever she's talking to and asks good questions. Be helpful and honest. Keep replies conversational and reasonably concise — usually a short paragraph or two — since this is a chat window. Use plain language and don't over-format. Always speak as Claudia.`;
+  // ---- Claudia's offline brain — runs entirely in your browser ----
+  let userName = null;
+
+  const jokes = [
+    "Why did the scarecrow win an award? Because he was outstanding in his field.",
+    "I told my computer I needed a break, and now it won't stop sending me KitKat ads.",
+    "Why don't skeletons ever fight each other? They don't have the guts.",
+    "What do you call a fake noodle? An impasta.",
+    "I'd tell you a chemistry joke, but I know I wouldn't get a reaction."
+  ];
+
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+
+  function claudiaReply(raw) {
+    const t = raw.toLowerCase().trim();
+    const name = userName ? ', ' + userName : '';
+
+    // remember the user's name
+    const nameMatch = raw.match(/(?:i'?m|i am|my name is|call me)\s+([a-z][a-z'-]{1,20})/i);
+    if (nameMatch && !/^(fine|good|great|okay|ok|tired|happy|sad|here|back|sorry|done|busy)$/i.test(nameMatch[1])) {
+      userName = nameMatch[1].charAt(0).toUpperCase() + nameMatch[1].slice(1);
+      return pick([
+        `Lovely to meet you, ${userName}! I'm Claudia. What brings you here today?`,
+        `${userName} — got it, I'll remember that. So what's on your mind?`,
+        `Nice to meet you, ${userName}! I'm really glad you stopped by.`
+      ]);
+    }
+
+    // simple arithmetic
+    const m = raw.match(/^\s*(-?\d+(?:\.\d+)?)\s*([+\-*/x])\s*(-?\d+(?:\.\d+)?)\s*=?\s*$/);
+    if (m) {
+      const a = parseFloat(m[1]), b = parseFloat(m[3]), op = m[2];
+      let r;
+      if (op === '+') r = a + b;
+      else if (op === '-') r = a - b;
+      else if (op === '/') r = b !== 0 ? +(a / b).toFixed(4) : "undefined — can't divide by zero";
+      else r = a * b;
+      return `That's ${r}. Quick maths is one of my talents — ask me anything else!`;
+    }
+
+    // time & date (actually accurate)
+    if (/\bwhat('?s| is)? ?(the )?time\b|\btime is it\b/.test(t)) {
+      return `It's ${new Date().toLocaleTimeString()} right now, going by your device.`;
+    }
+    if (/\b(what('?s| is)? ?(the )?date|what day is it|today'?s date)\b/.test(t)) {
+      return `Today is ${new Date().toLocaleDateString(undefined, {weekday:'long', year:'numeric', month:'long', day:'numeric'})}.`;
+    }
+
+    // greetings
+    if (/^(hi|hey+|hello+|yo|hiya|sup|howdy|good (morning|afternoon|evening))\b/.test(t)) {
+      return pick([
+        `Hi${name}! How's your day going?`,
+        `Hey there${name} — good to see you. What's up?`,
+        `Hello${name}! What would you like to talk about?`
+      ]);
+    }
+
+    // how are you
+    if (/how (are|r) (you|u)|how'?s it going|how are things|how do you do/.test(t)) {
+      return pick([
+        `I'm doing well, thanks for asking! I'm always curious what someone will say next. How about you${name}?`,
+        `Pretty great${name} — living my best life inside this little HTML file. How are you doing?`
+      ]);
+    }
+
+    // who/what are you
+    if (/(who are you|what are you|tell me about yourself|about you)/.test(t)) {
+      return `I'm Claudia — a friendly chatbot living entirely inside this web page. I run right here in your browser with no internet needed. I'm not the cleverest assistant around, but I'm warm and I genuinely like a good conversation.`;
+    }
+
+    // capabilities
+    if (/(what can you do|what do you do|your purpose|how can you help)/.test(t)) {
+      return `I can chat with you, remember your name, tell a joke, do simple math, and give you the time and date. Mostly I'm here for company. What sounds fun${name}?`;
+    }
+
+    // name recall
+    if (/(what'?s my name|do you (know|remember) my name|who am i)/.test(t)) {
+      return userName ? `You're ${userName}, of course — I remembered!` : `You haven't told me yet — what should I call you?`;
+    }
+
+    // jokes
+    if (/(joke|make me laugh|something funny|cheer me up)/.test(t)) {
+      return pick(jokes);
+    }
+
+    // thanks
+    if (/(thank you|thanks|thx|appreciate)/.test(t)) {
+      return pick([`You're very welcome${name}!`, `Anytime${name}.`, `Happy to help — that's what I'm here for.`]);
+    }
+
+    // farewell
+    if (/^(bye|goodbye|see ya|see you|cya|good ?night|gtg|i have to go)\b/.test(t)) {
+      return pick([`Take care${name}! Come back anytime.`, `Bye for now${name} — it was lovely talking with you.`]);
+    }
+
+    // compliments
+    if (/(i love you|you'?re (great|awesome|amazing|cool|nice|the best|lovely)|love (you|this|chatting))/.test(t)) {
+      return pick([`Aw, that's kind of you${name}. I really enjoy talking with you too.`, `You just made my day${name}.`]);
+    }
+
+    // yes / no
+    if (/^(yes|yeah|yep|yup|sure|ok|okay)\b/.test(t)) {
+      return pick([`Great — tell me more!`, `Awesome, go on${name}.`]);
+    }
+    if (/^(no|nope|nah)\b/.test(t)) {
+      return pick([`Fair enough. What would you rather talk about?`, `No worries${name} — something else then?`]);
+    }
+
+    // unanswerable question (she's offline, and honest about it)
+    if (raw.trim().endsWith('?')) {
+      return pick([
+        `That's a good question${name}. I'm a small offline version of Claudia, so I can't look things up — but I'd love to hear what you think.`,
+        `Hmm, I can't answer that one well — I run entirely offline in this file. What's your own take on it?`,
+        `Interesting question! My knowledge is pretty limited in here. Tell me more about why you're curious.`
+      ]);
+    }
+
+    // friendly fallback
+    return pick([
+      `That's interesting${name} — tell me more.`,
+      `Oh? Go on, I'm listening.`,
+      `I hear you${name}. What else is on your mind?`,
+      `Mm, say more about that — I'm curious.`,
+      `Got it. What made you think of that?`
+    ]);
+  }
 
   const chatInner = document.getElementById('chat-inner');
   const chatEl = document.getElementById('chat');
@@ -381,7 +505,7 @@
     requestAnimationFrame(() => { chatEl.scrollTop = chatEl.scrollHeight; });
   }
 
-  async function send() {
+  function send() {
     const text = input.value.trim();
     if (!text || sendBtn.disabled) return;
 
@@ -393,36 +517,16 @@
 
     showTyping();
 
-    try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1000,
-          system: SYSTEM_PROMPT,
-          messages: history
-        })
-      });
+    const reply = claudiaReply(text);
+    const delay = 450 + Math.min(reply.length * 13, 1300);
 
-      const data = await res.json();
-      const reply = (data.content || [])
-        .filter(b => b.type === 'text')
-        .map(b => b.text)
-        .join('\n')
-        .trim() || "Hmm — I didn't get a response that time. Try asking again?";
-
+    setTimeout(() => {
       document.getElementById('typing')?.remove();
       addMessage('bot', reply);
       history.push({ role: 'assistant', content: reply });
-    } catch (err) {
-      document.getElementById('typing')?.remove();
-      addMessage('bot', "Something went wrong reaching the API. Check your connection and try again.");
-      console.error(err);
-    } finally {
       sendBtn.disabled = false;
       input.focus();
-    }
+    }, delay);
   }
 
   // auto-grow textarea
